@@ -4,7 +4,6 @@ from database import (
     create_user, get_user, verify_password, log_user_activity,
     get_recent_activities, save_code, get_recent_codes
 )
-from install import install_package
 import secrets
 import os
 
@@ -117,16 +116,6 @@ def logout():
     session.clear()  
     return redirect(url_for("home"))
 
-#pip installation page
-@app.route('/pip')
-def pip():
-    return render_template('pip.html')  # Ensure correct file name
-
-@app.route('/install', methods=['POST'])
-def install():
-    package_name = request.form.get('package')  # Ensure correct key
-    result = install_package(package_name)
-    return jsonify(result)
 #code execution logic route
 @app.route('/run', methods=['POST'])
 def run_code():
