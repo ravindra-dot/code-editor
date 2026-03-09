@@ -81,10 +81,16 @@ nav ul li a:hover {
   background-color: #218838;
 }
 
+#code {
+            height: 400px;
+            border: 1px solid #ddd;
+        }
+
 .container {
   display: flex;
-  margin: 10px;
+  height: calc(100vh - 80px);
   gap: 10px;
+  padding: 10px;
 }
 
 .file-section {

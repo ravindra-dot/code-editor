@@ -7,11 +7,8 @@ from database import (
 import secrets
 import os
 
-print(secrets.token_hex(32))
-
 app = Flask(__name__, template_folder="../frontend/templates", static_folder="../frontend/static")
-app.secret_key = "a73a1dd45267dc427f20f650385d0566e95b73189d076369be187445026ce9ad"
-
+app.secret_key = secrets.token_hex(32)
 UPLOADS_DIR = "uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 #home route
@@ -28,7 +25,7 @@ from flask import session, redirect, url_for, render_template
 @app.route('/index')
 def index():
     if 'username' not in session:
-        return redirect(url_for('login_page'))  # Redirect to login page if not logged in
+        return redirect(url_for('login_page'))
     return render_template('index.html')
 
 #html editor route
@@ -126,10 +123,10 @@ def run_code():
     data = request.get_json(force=True)
     language = data.get("language")
     code = data.get("code")
-    user_input = data.get("input", "")
+    userInput = data.get("input", "")
 
     try:
-        output = execute_code(language, code, user_input)
+        output = execute_code(language, code, userInput)
 
         # user's log activity
         log_user_activity(username, f"Ran {language} code")
@@ -142,4 +139,4 @@ def run_code():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5500)
