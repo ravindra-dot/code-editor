@@ -1,55 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/wstyle.css') }}">
-    <link rel="stylesheet" href="style.css" class="css">
+    <title>CodeSphere - HTML Editor</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <header>
-        <h1>CodeEditor</h1>
-        <nav>
-            <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/project">Projects</a></li>
-                <li><a href="/index">Editor</a></li>
-                <li><a href="/profile">Profile</a></li>
-                <li><a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
-                    Logout
-                </a></li>
-            </ul>
-        </nav>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <h1>
+                <a href="/" class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent hover:opacity-90 transition-opacity">
+                    CodeSphere
+                </a>
+            </h1>
+            
+            <!-- Mobile Menu Toggle Button -->
+            <button id="menu-toggle" class="sm:hidden text-slate-400 hover:text-white focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+
+            <!-- Navigation Links -->
+            <nav id="nav-menu" class="hidden sm:flex items-center space-x-6 text-sm font-medium">
+                <a class="text-slate-300 hover:text-white transition-colors" href="/">Home</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="/project">Projects</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="/index">Editor</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="/profile">Profile</a>
+                <a class="px-4 py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200" href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </div>
+
+        <!-- Mobile Dropout Menu -->
+        <div id="mobile-menu" class="hidden sm:hidden border-t border-slate-800 bg-slate-900 px-4 py-3 space-y-3">
+            <a class="block text-slate-300 hover:text-white text-sm" href="/">Home</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="/project">Projects</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="/index">Editor</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="/profile">Profile</a>
+            <a class="block text-center py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400" href="{{ url_for('logout') }}">Logout</a>
+        </div>
     </header>
-    <div id="content">
-        <div class="run-btn">
-            <div class="heading-box">
-                <h1 class="heading">...WEB CODE... </h1>
-            </div>
-            <div>
-                <button class="run-code html" onclick="toggleHTML()">HTML <span class="status-circle filled"></span></button>
-                <button class="run-code css" onclick="toggleCSS()">CSS <span class="status-circle filled"></span></button>
-                <button class="run-code js" onclick="toggleJS()">JS <span class="status-circle filled"></span></button>
-                <button class="run-code output" onclick="ShowOutput()">Output</button>
-            </div>
-        </div>
 
-        <div class="editor">
-            <div class="code-editor">
-                <textarea id="htmlCode" placeholder="HTML Code"></textarea>
-                <textarea id="cssCode" placeholder="CSS Code"></textarea>
-                <textarea id="jsCode" placeholder="JS Code"></textarea>
+    <!-- Workspace Controls Bar -->
+    <div class="bg-slate-900 border-b border-slate-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <h2 class="text-sm font-semibold tracking-wider text-slate-300 uppercase font-mono">Web Workspace</h2>
             </div>
-            <iframe id="preview" src="about:blank"></iframe>
+            
+            <!-- Editor Toggles + Run Controls -->
+            <div class="flex items-center flex-wrap gap-2">
+                <button id="btn-html" onclick="toggleHTML()" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-all">
+                    HTML <span id="dot-html" class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                </button>
+                <button id="btn-css" onclick="toggleCSS()" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all">
+                    CSS <span id="dot-css" class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                </button>
+                <button id="btn-js" onclick="toggleJS()" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-all">
+                    JS <span id="dot-js" class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+                </button>
+                <button onclick="ShowOutput()" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-black rounded-lg bg-emerald-600 text-white shadow-md hover:bg-emerald-500 active:scale-[0.98] transition-all ml-2">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                    </svg>
+                    Run Output
+                </button>
+            </div>
         </div>
     </div>
 
-    <div id="alertMessage">
-        <p>Please make sure you have a bigger display</p>
-        <button onclick="reloadPage()">Try Again</button>
+    <!-- Main Workspace Split Panel -->
+    <main class="flex-grow flex flex-col md:flex-row h-[calc(100vh-120px)] w-full overflow-hidden">
+        
+        <!-- Left Side: Editors Container -->
+        <div id="editors-container" class="w-full md:w-1/2 flex flex-col border-r border-slate-800 divide-y divide-slate-800 bg-slate-950">
+            
+            <!-- HTML Panel -->
+            <div id="panel-html" class="flex-1 flex flex-col overflow-hidden transition-all duration-200">
+                <div class="bg-slate-900/60 px-4 py-1.5 border-b border-slate-800/60 flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400 font-mono">index.html</span>
+                </div>
+                <textarea id="htmlCode" class="flex-grow bg-slate-950 p-4 font-mono text-sm text-slate-300 focus:outline-none resize-none custom-scrollbar" placeholder="<!-- Write your HTML structure here -->"></textarea>
+            </div>
+
+            <!-- CSS Panel -->
+            <div id="panel-css" class="flex-1 flex flex-col overflow-hidden transition-all duration-200">
+                <div class="bg-slate-900/60 px-4 py-1.5 border-b border-slate-800/60 flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-blue-400 font-mono">style.css</span>
+                </div>
+                <textarea id="cssCode" class="flex-grow bg-slate-950 p-4 font-mono text-sm text-slate-300 focus:outline-none resize-none custom-scrollbar" placeholder="/* Write your CSS styling here */"></textarea>
+            </div>
+
+            <!-- JS Panel -->
+            <div id="panel-js" class="flex-1 flex flex-col overflow-hidden transition-all duration-200">
+                <div class="bg-slate-900/60 px-4 py-1.5 border-b border-slate-800/60 flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-yellow-400 font-mono">script.js</span>
+                </div>
+                <textarea id="jsCode" class="flex-grow bg-slate-950 p-4 font-mono text-sm text-slate-300 focus:outline-none resize-none custom-scrollbar" placeholder="// Write your JavaScript logic here"></textarea>
+            </div>
+            
+        </div>
+
+        <!-- Right Side: Realtime Iframe Preview -->
+        <div id="preview-container" class="w-full md:w-1/2 bg-white flex flex-col h-full">
+            <div class="bg-slate-900 border-b border-slate-800 px-4 py-1.5 flex items-center justify-between text-slate-400">
+                <span class="text-[11px] font-bold uppercase tracking-wider font-mono">Live Preview Browser</span>
+            </div>
+            <iframe id="preview" src="about:blank" class="w-full flex-grow bg-white border-none"></iframe>
+        </div>
+
+    </main>
+
+    <!-- Low Resolution Overlay Dialog Box -->
+    <div id="alertMessage" class="hidden fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-sm shadow-2xl space-y-4">
+            <div class="w-12 h-12 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-bold text-white">Bigger Display Required</h3>
+            <p class="text-sm text-slate-400">Please make sure you have a larger screen view to use the Multi-Panel Web Code Editor workspace efficiently.</p>
+            <button onclick="reloadPage()" class="w-full py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-500 transition-colors">
+                Try Again
+            </button>
+        </div>
     </div>
+
+    <!-- Custom Utilities Scrollbar Styles -->
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+
+    <!-- Scripts Integration Linkage -->
     <script src="{{ url_for('static', filename='js/wscript.js') }}"></script>
-    <script src="script.js"></script>
+    
+    <!-- Mobile Menu Interactivity Script -->
+    <script>
+        const menuToggle = document.getElementById('menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        menuToggle.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
 </body>
+
 </html>

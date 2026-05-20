@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeSphere - Authentication</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans antialiased">
+
+    <!-- Header / Logo Only -->
+    <header class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
+        <h1>
+            <a href="/" class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+                CodeSphere
+            </a>
+        </h1>
+    </header>
+
+    <!-- Authentication Card Container -->
+    <main class="flex-grow flex items-center justify-center px-4 py-8">
+        <div class="relative w-full max-w-md group">
+            
+            <!-- Glow Effect Background -->
+            <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-25 transition duration-500"></div>
+            
+            <!-- Main Card -->
+            <div class="relative bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+                
+                <!-- Toggle Tabs -->
+                <div class="flex items-center justify-center border-b border-slate-800 mb-6 pb-2 space-x-8 text-sm font-semibold tracking-wide">
+                    <button id="tab-login" onclick="switchAuth('login')" class="text-blue-400 border-b-2 border-blue-500 pb-2 transition-all outline-none">
+                        Login
+                    </button>
+                    <button id="tab-signup" onclick="switchAuth('signup')" class="text-slate-400 hover:text-slate-200 pb-2 transition-all outline-none">
+                        Create Account
+                    </button>
+                </div>
+
+                <!-- Backend Flash Error Message (Jinja) -->
+                {% if error %}
+                    <div class="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-medium text-rose-400">
+                        ⚠️ {{ error }}
+                    </div>
+                {% endif %}
+
+                <!-- Frontend Validation Error Message Box -->
+                <div id="error-message" class="hidden mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-medium text-rose-400">
+                    ⚠️ Please fill out all required fields.
+                </div>
+
+                <!-- 1. LOGIN FORM CONTAINER -->
+                <form id="loginForm" action="/auth/login" method="POST" class="space-y-4">
+                    <div>
+                        <label for="login-username" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Username</label>
+                        <input type="text" id="login-username" name="username" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder-slate-700" placeholder="your_username">
+                    </div>
+                    
+                    <div>
+                        <label for="login-password" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Password</label>
+                        <input type="password" id="login-password" name="password" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder-slate-700" placeholder="••••••••">
+                    </div>
+
+                    <button type="submit" class="w-full py-3 mt-2 text-sm font-bold rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:from-blue-600 hover:to-indigo-700 active:scale-[0.98] transition-all duration-150">
+                        Sign In
+                    </button>
+                    
+                    <p class="text-xs text-center text-slate-500 pt-2">
+                        New to CodeSphere? <button type="button" onclick="switchAuth('signup')" class="text-blue-400 hover:underline bg-transparent border-none cursor-pointer">Create an account</button>
+                    </p>
+                </form>
+
+                <!-- 2. SIGNUP FORM CONTAINER (Hidden by default) -->
+                <!-- Note: Signup uses fetch/JSON to match your existing backend API structure -->
+                <form id="signupForm" class="hidden space-y-4">
+                    <div>
+                        <label for="signup-fullname" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Full Name</label>
+                        <input type="text" id="signup-fullname" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder-slate-700" placeholder="John Doe">
+                    </div>
+
+                    <div>
+                        <label for="signup-username" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Username</label>
+                        <input type="text" id="signup-username" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder-slate-700" placeholder="john_doe">
+                    </div>
+
+                    <div>
+                        <label for="signup-email" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Email Address</label>
+                        <input type="email" id="signup-email" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder-slate-700" placeholder="name@example.com">
+                    </div>
+                    
+                    <div>
+                        <label for="signup-password" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Password</label>
+                        <input type="password" id="signup-password" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder-slate-700" placeholder="••••••••">
+                    </div>
+
+                    <button type="submit" class="w-full py-3 mt-2 text-sm font-bold rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md hover:from-purple-600 hover:to-indigo-700 active:scale-[0.98] transition-all duration-150">
+                        Register Account
+                    </button>
+                    
+                    <p class="text-xs text-center text-slate-500 pt-2">
+                        Already have an account? <button type="button" onclick="switchAuth('login')" class="text-blue-400 hover:underline bg-transparent border-none cursor-pointer">Log in</button>
+                    </p>
+                </form>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-600">
+        <p>&copy; 2026 CodeSphere Workspace.</p>
+    </footer>
+
+    <!-- Interactive Toggling & Form Submissions JavaScript -->
+    <script>
+        const tabLogin = document.getElementById("tab-login");
+        const tabSignup = document.getElementById("tab-signup");
+        const loginForm = document.getElementById("loginForm");
+        const signupForm = document.getElementById("signupForm");
+        const errorMessage = document.getElementById("error-message");
+
+        // Toggle visibility between Login and Signup panels
+        function switchAuth(panel) {
+            errorMessage.classList.add("hidden");
+            if (panel === "login") {
+                loginForm.classList.remove("hidden");
+                signupForm.classList.add("hidden");
+                tabLogin.className = "text-blue-400 border-b-2 border-blue-500 pb-2 transition-all outline-none";
+                tabSignup.className = "text-slate-400 hover:text-slate-200 pb-2 transition-all outline-none";
+            } else {
+                loginForm.classList.add("hidden");
+                signupForm.classList.remove("hidden");
+                tabLogin.className = "text-slate-400 hover:text-slate-200 pb-2 transition-all outline-none";
+                tabSignup.className = "text-purple-400 border-b-2 border-purple-500 pb-2 transition-all outline-none";
+            }
+        }
+
+        // Login Validation
+        loginForm.addEventListener("submit", function(event) {
+            let username = document.getElementById("login-username").value.trim();
+            let password = document.getElementById("login-password").value.trim();
+            
+            if (username === "" || password === "") {
+                event.preventDefault();
+                errorMessage.textContent = "⚠️ Please fill in all login fields.";
+                errorMessage.classList.remove("hidden");
+            }
+        });
+
+        // Signup Submission handler matching your JSON backend configuration
+        signupForm.addEventListener("submit", function(event) {
+            event.preventDefault();
+            
+            let fullName = document.getElementById("signup-fullname").value.trim();
+            let username = document.getElementById("signup-username").value.trim();
+            let email = document.getElementById("signup-email").value.trim();
+            let password = document.getElementById("signup-password").value.trim();
+
+            if (fullName === "" || username === "" || email === "" || password === "") {
+                errorMessage.textContent = "⚠️ All signup fields are required.";
+                errorMessage.classList.remove("hidden");
+                return;
+            }
+
+            const data = {
+                fullName: fullName,
+                username: username,
+                email: email,
+                password: password
+            };
+
+            fetch("/auth/signup", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(res => {
+                if (res.status === 201) {
+                    window.location.href = "/editor"; // Redirect to workspace upon success
+                } else {
+                    return res.json().then(errData => { throw new Error(errData.message); });
+                }
+            })
+            .catch(err => {
+                errorMessage.textContent = "⚠️ " + err.message;
+                errorMessage.classList.remove("hidden");
+            });
+        });
+    </script>
+</body>
+
+</html>

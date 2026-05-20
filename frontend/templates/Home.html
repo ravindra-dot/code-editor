@@ -4,46 +4,101 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CodeSphere - Home</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans antialiased selection:bg-blue-500 selection:text-white">
 
   <!-- Navbar -->
-  <header>
-    <h1><a href="/" style="color: inherit; text-decoration: none;">CodeSphere</a></h1>
-    <nav>
-      <ul>
-        <li><a href="/index">Editor</a></li>
-        {% if session.get('username') %}
-          <li><a href="/profile">Profile</a></li>
-          <li><a href="/logout" class="logout">Logout</a></li>
-        {% else %}
-          <li><a href="/login">Login</a></li>
-          <li><a href="/signup" class="editor-btn">Sign Up</a></li>
-        {% endif %}
-      </ul>
-    </nav>
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <h1>
+        <a href="/" class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent hover:opacity-90 transition-opacity">
+          CodeSphere
+        </a>
+      </h1>
+      <nav>
+        <ul class="flex items-center space-x-6 text-sm font-medium">
+          <li>
+            <a href="/editor" class="text-slate-300 hover:text-white transition-colors">Editor</a>
+          </li>
+          {% if session.get('username') %}
+            <li>
+              <a href="/profile" class="text-slate-300 hover:text-white transition-colors">Profile</a>
+            </li>
+            <li>
+              <a href="/logout" class="px-4 py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200">Logout</a>
+            </li>
+          {% else %}
+            <li>
+              <a href="/login" class="text-slate-300 hover:text-white transition-colors">Login</a>
+            </li>
+            <li>
+              <a href="/signup" class="px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20 hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200">Sign Up</a>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
   </header>
 
   <!-- Hero Section -->
-  <section class="container">
-    <div class="editor-section">
-      <h2>Write, Compile, and Execute Code Online</h2>
-      <p>
-        A powerful online code editor supporting Python, C, and C++.<br/>
-        Run your code instantly with error handling and a built-in file system.
-      </p>
-      {% if not session.get('username') %}
-        <div style="margin-top: 20px;">
-          <a href="/signup" class="upload-btn">Get Started</a>
-          <a href="/login" class="upload-btn" style="background-color: transparent; color: #007bff; border: 2px solid #007bff;">Login</a>
+  <main class="flex-grow flex items-center">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
+      
+      <!-- Text content -->
+      <div class="space-y-6 text-center lg:text-left">
+        <div class="inline-flex items-center space-x-2 bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase border border-blue-500/20">
+          <span>⚡ Supports Python, C, C++</span>
         </div>
-      {% endif %}
-    </div>
-    <div class="io-section">
-      <img src="{{ url_for('static', filename='images/editor.jpg') }}" alt="Code Editor Image" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" />
-    </div>
-  </section>
+        <h2 class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
+          Write, Compile, & <br class="hidden sm:inline"/>Execute Code <span class="bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Instantly</span>
+        </h2>
+        <p class="text-base sm:text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+          A lightning-fast, secure online IDE. Run your scripts flawlessly with intelligent error detection, real-time logging, and a built-in virtual workspace.
+        </p>
+        
+        {% if not session.get('username') %}
+          <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+            <a href="/signup" class="w-full sm:w-auto text-center px-8 py-3.5 text-base font-semibold rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 text-white shadow-xl shadow-indigo-500/20 hover:opacity-95 transform hover:-translate-y-0.5 transition-all duration-200">
+              Get Started for Free
+            </a>
+            <a href="/login" class="w-full sm:w-auto text-center px-8 py-3.5 text-base font-semibold rounded-xl bg-slate-900 text-slate-200 border border-slate-800 hover:bg-slate-800 hover:text-white transform hover:-translate-y-0.5 transition-all duration-200">
+              Welcome Back Login
+            </a>
+          </div>
+        {% else %}
+          <div class="pt-4">
+            <a href="/editor" class="inline-flex items-center space-x-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/20 hover:opacity-95 transform hover:-translate-y-0.5 transition-all duration-200">
+              <span>Go to Workspace</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Image Display / Preview -->
+      <div class="relative w-full max-w-lg lg:max-w-none mx-auto group">
+        <!-- Decorative Glow Effects -->
+        <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000 group-hover:duration-200"></div>
+        <div class="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-black/50">
+          <img 
+            src="{{ url_for('static', filename='images/editor.jpg') }}" 
+            alt="Code Editor Interface" 
+            class="w-full h-auto object-cover transform group-hover:scale-[1.01] transition-transform duration-500" 
+          />
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+    <p>&copy; 2026 CodeSphere Inc. Built for developers.</p>
+  </footer>
 
 </body>
 </html>

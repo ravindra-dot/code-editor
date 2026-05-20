@@ -2,11 +2,18 @@ import subprocess
 import os
 import sys
 
-#os bachane ke liye....
-BLOCKED_COMMANDS = ["os.system", "subprocess.call", "shutil.rmtree", "exec", "eval", "open('/etc/passwd'", "sys.exit"]
+BLOCKED_COMMANDS = [
+    "os.system", 
+    "subprocess.call", 
+    "shutil.rmtree", 
+    "exec", 
+    "eval", 
+    "open('/etc/passwd'", 
+    "sys.exit"
+]
 
 def is_safe_code(code):
-    """ Check if the code contains blocked commands """
+    """Check if the code contains blocked commands"""
     for cmd in BLOCKED_COMMANDS:
         if cmd in code:
             return False, f"Security Alert: Use of restricted command '{cmd}' detected!"

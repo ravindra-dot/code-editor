@@ -11,40 +11,89 @@ function RunCode() {
     const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
 
     previewDoc.open();
-    previewDoc.write(htmlCode + cssCode); // Write HTML & CSS first
+    previewDoc.write(htmlCode + cssCode);
     previewDoc.close();
 
-    // Create a script element for JavaScript
     const script = previewDoc.createElement("script");
     script.textContent = jsCode;
     previewDoc.body.appendChild(script);
 }
 
 function toggleHTML() {
-    const htmlTextarea = document.getElementById('htmlCode');
-    htmlTextarea.style.display = (htmlTextarea.style.display === 'none') ? 'block' : 'none';
+    const panel = document.getElementById("panel-html");
+    const dot = document.getElementById("dot-html");
+    const btn = document.getElementById("btn-html");
+
+    if (panel.classList.contains("hidden")) {
+        panel.classList.remove("hidden");
+        dot.classList.remove("bg-slate-600");
+        dot.classList.add("bg-amber-400");
+        btn.classList.remove("opacity-50");
+    } else {
+        panel.classList.add("hidden");
+        dot.classList.remove("bg-amber-400");
+        dot.classList.add("bg-slate-600");
+        btn.classList.add("opacity-50");
+    }
 }
 
 function toggleCSS() {
-    const cssTextarea = document.getElementById('cssCode');
-    cssTextarea.style.display = (cssTextarea.style.display === 'none') ? 'block' : 'none';
+    const panel = document.getElementById("panel-css");
+    const dot = document.getElementById("dot-css");
+    const btn = document.getElementById("btn-css");
+
+    if (panel.classList.contains("hidden")) {
+        panel.classList.remove("hidden");
+        dot.classList.remove("bg-slate-600");
+        dot.classList.add("bg-blue-400");
+        btn.classList.remove("opacity-50");
+    } else {
+        panel.classList.add("hidden");
+        dot.classList.remove("bg-blue-400");
+        dot.classList.add("bg-slate-600");
+        btn.classList.add("opacity-50");
+    }
 }
 
 function toggleJS() {
-    const jsTextarea = document.getElementById('jsCode');
-    jsTextarea.style.display = (jsTextarea.style.display === 'none') ? 'block' : 'none';
+    const panel = document.getElementById("panel-js");
+    const dot = document.getElementById("dot-js");
+    const btn = document.getElementById("btn-js");
+
+    if (panel.classList.contains("hidden")) {
+        panel.classList.remove("hidden");
+        dot.classList.remove("bg-slate-600");
+        dot.classList.add("bg-yellow-400");
+        btn.classList.remove("opacity-50");
+    } else {
+        panel.classList.add("hidden");
+        dot.classList.remove("bg-yellow-400");
+        dot.classList.add("bg-slate-600");
+        btn.classList.add("opacity-50");
+    }
 }
 
 function ShowOutput() {
-    const outPutArea = document.getElementById('preview');
-    outPutArea.style.display = (outPutArea.style.display === 'none') ? 'block' : 'none';
+    const container = document.getElementById('preview-container');
+    const editors = document.getElementById('editors-container');
+
+    if (container.classList.contains("hidden")) {
+        container.classList.remove("hidden");
+        editors.classList.remove("md:w-full");
+        editors.classList.add("md:w-1/2");
+    } else {
+        container.classList.add("hidden");
+        editors.classList.remove("md:w-1/2");
+        editors.classList.add("md:w-full");
+    }
 }
 
 function checkDisplaySize() {
+    const alertBox = document.getElementById('alertMessage');
     if (window.innerWidth < 750) {
-        document.getElementById('content').classList.add('hidden');
-        document.getElementById('alertMessage').style.display = 'block';
-        alert("Please make sure you have a bigger display");
+        alertBox.classList.remove('hidden');
+    } else {
+        alertBox.classList.add('hidden');
     }
 }
 
@@ -52,47 +101,7 @@ function reloadPage() {
     location.reload();
 }
 
-window.onload = checkDisplaySize;
-window.onresize = checkDisplaySize;
-
-function toggleHTML() {
-    const htmlEditor = document.getElementById("htmlCode");
-    const htmlStatus = document.querySelector(".html .status-circle");
-    if (htmlEditor.style.display === "none" || htmlEditor.style.display === "") {
-        htmlEditor.style.display = "block";
-        htmlStatus.classList.add("filled");
-    } else {
-        htmlEditor.style.display = "none";
-        htmlStatus.classList.remove("filled");
-    }
-}
-
-function toggleCSS() {
-    const cssEditor = document.getElementById("cssCode");
-    const cssStatus = document.querySelector(".css .status-circle");
-    if (cssEditor.style.display === "none" || cssEditor.style.display === "") {
-        cssEditor.style.display = "block";
-        cssStatus.classList.add("filled");
-    } else {
-        cssEditor.style.display = "none";
-        cssStatus.classList.remove("filled");
-    }
-}
-
-function toggleJS() {
-    const jsEditor = document.getElementById("jsCode");
-    const jsStatus = document.querySelector(".js .status-circle");
-    if (jsEditor.style.display === "none" || jsEditor.style.display === "") {
-        jsEditor.style.display = "block";
-        jsStatus.classList.add("filled");
-    } else {
-        jsEditor.style.display = "none";
-        jsStatus.classList.remove("filled");
-    }
-}
-
-window.onload = function () {
-    document.getElementById("htmlCode").style.display = "block";
-    document.getElementById("cssCode").style.display = "block";
-    document.getElementById("jsCode").style.display = "block";
-};
+window.addEventListener('DOMContentLoaded', function() {
+    checkDisplaySize();
+    window.addEventListener('resize', checkDisplaySize);
+});

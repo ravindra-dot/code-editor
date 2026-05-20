@@ -2,174 +2,133 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeSphere - Editor</title>
 
-    <title>CodeSphere</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Monaco -->
+    <!-- Monaco Editor Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 
     <style>
+        /* Monaco editor instance styling */
         #code {
-            min-height: 400px;
+            min-height: 450px;
             width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 6px;
         }
 
-        #explorer {
-            width: 250px;
-            min-width: 250px;
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-
-        #explorer.collapsed {
-            width: 0;
-            min-width: 0;
-            padding: 0;
-            border: none;
-        }
-
-        /* Mobile editor height */
-        @media (max-width:768px) {
+        @media (max-width: 768px) {
             #code {
-                min-height: 300px;
+                min-height: 350px;
             }
         }
     </style>
-
 </head>
 
-<body class="bg-light">
-
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-
-        <div class="container-fluid">
-
-            <a class="navbar-brand fw-bold" href="#">CodeSphere</a>
-
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup">
-                <span class="navbar-toggler-icon"></span>
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <h1>
+                <a href="/" class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent hover:opacity-90 transition-opacity">
+                    CodeSphere
+                </a>
+            </h1>
+            
+            <!-- Mobile Menu Toggle Button -->
+            <button id="menu-toggle" class="lg:hidden text-slate-400 hover:text-white focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
             </button>
 
-            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-
-                <div class="navbar-nav ms-auto">
-                    <a class="nav-link" href="/">Home</a>
-                    <a class="nav-link" href="/project">Projects</a>
-                    <a class="nav-link" href="/profile">Profile</a>
-                    <a class="nav-link" href="{{ url_for('html_editor') }}">HTML Editor</a>
-                    <a class="nav-link text-warning" href="{{ url_for('logout') }}">Logout</a>
-                </div>
-
-            </div>
+            <!-- Navigation Links -->
+            <nav id="nav-menu" class="hidden lg:flex items-center space-x-6 text-sm font-medium">
+                <a class="text-slate-300 hover:text-white transition-colors" href="/">Home</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="/project">Projects</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="/profile">Profile</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="{{ url_for('html_editor') }}">HTML Editor</a>
+                <a class="px-4 py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200" href="{{ url_for('logout') }}">Logout</a>
+            </nav>
         </div>
-    </nav>
 
+        <!-- Mobile Dropout Menu -->
+        <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-800 bg-slate-900 px-4 py-3 space-y-3">
+            <a class="block text-slate-300 hover:text-white text-sm" href="/">Home</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="/project">Projects</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="/profile">Profile</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="{{ url_for('html_editor') }}">HTML Editor</a>
+            <a class="block text-center py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </header>
 
-    <div class="container-fluid mt-3">
-
-        <div class="row">
-
-
-            <!--Icon Bar -->
-            <!--
-<div class="bg-dark text-white p-2 d-flex flex-column align-items-center">
-<button class="btn btn-dark mb-3" onclick="toggleExplorer()">📂</button>
-</div>
--->
-
-
-            <!-- File Explorer -->
-            <!--
-<div id="explorer" class="bg-light border-end">
-
-<h6 class="mt-3 px-2">Explorer</h6>
-
-<button onclick="selectFolder()" class="btn btn-sm btn-primary m-2">
-Open Folder
-</button>
-
-<ul id="folderTree" class="list-group list-group-flush"></ul>
-
-<p id="fileName" class="small text-muted px-2">
-No file selected
-</p>
-
-</div>
--->
-
-            <!-- There is a siltest error with the file functionality which i am unable to understand to will work on it future so for now enjoy your code exexution on page for basic practices//// -->
-
-
-            <!-- Editor -->
-            <div class="col-12 col-lg-9 mb-3 d-flex flex-column">
-
-                <div class="card shadow-sm flex-grow-1">
-
-                    <!-- Toolbar -->
-                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-
-                        <div class="d-flex align-items-center gap-2">
-
-                            <strong>Code Editor</strong>
-
-                            <select id="language-select" class="form-select form-select-sm w-auto">
+    <!-- Main Workspace Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            
+            <!-- Editor Panel (Takes 3 columns on large screens) -->
+            <div class="lg:col-span-3 flex flex-col h-full">
+                <div class="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-2xl flex flex-col flex-grow">
+                    
+                    <!-- Toolbar Header -->
+                    <div class="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm font-semibold tracking-wide text-slate-200">Code Editor</span>
+                            <select id="language-select" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 font-medium cursor-pointer transition-colors hover:border-slate-700">
                                 <option value="python">Python</option>
                                 <option value="c">C</option>
                                 <option value="cpp">C++</option>
                             </select>
-
                         </div>
 
-                        <button onclick="runCode()" class="btn btn-success btn-sm">
-                            ▶ Run
+                        <button onclick="runCode()" class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/10 hover:bg-emerald-400 active:scale-95 transition-all duration-150">
+                            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            <span>Run Code</span>
                         </button>
-
                     </div>
 
-                    <!-- Editor -->
-                    <div id="code" class="flex-grow-1"></div>
-
+                    <!-- Monaco Container Target -->
+                    <div id="code" class="bg-slate-950"></div>
                 </div>
             </div>
 
+            <!-- IO Panel (Takes 1 column on large screens) -->
+            <div class="lg:col-span-1 space-y-5 bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-xl">
+                
+                <!-- Input Box Field -->
+                <div>
+                    <label for="input-box" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Input</label>
+                    <textarea id="input-box" rows="5" class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded-lg p-3 text-sm font-mono focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none transition-all placeholder-slate-600" placeholder="Provide program inputs here..."></textarea>
+                </div>
 
-            <!-- IO Panel -->
-            <div class="col-12 col-lg-3 border-lg-start d-flex flex-column p-3">
-
-                <h6>Input</h6>
-
-                <textarea id="input-box" class="form-control mb-3" rows="6" style="resize:none;">
-</textarea>
-
-                <h6>Output</h6>
-
-                <pre id="output-box" class="bg-dark text-light p-2 rounded overflow-auto" style="min-height:150px;">
-</pre>
+                <!-- Output Box Field -->
+                <div>
+                    <span class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Output</span>
+                    <pre id="output-box" class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded-lg p-3 text-sm font-mono overflow-auto min-h-[180px] max-h-[300px] whitespace-pre-wrap selection:bg-slate-800" placeholder="Execution terminal output..."></pre>
+                </div>
 
             </div>
 
-
         </div>
-    </div>
+    </main>
 
+    <!-- JavaScript Mobile Menu Logic -->
+    <script>
+        const menuToggle = document.getElementById('menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        menuToggle.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
 
+    <!-- Project Core Execution Scripts -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    <!-- <script src="{{ url_for('static', filename='js/fscript.js') }}"></script> -->
-
-
 </body>
 
 </html>
