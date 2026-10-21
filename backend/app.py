@@ -1,38 +1,67 @@
 import os
 import secrets
-from flask import Flask, render_template, request, jsonify, redirect, session, url_for, send_from_directory
-from run_code import execute_code
+from pathlib import Path
+from flask import Flask, render_template, request, jsonify, redirect, session, url_for
+from run_code import execute_code, RunnerTimeoutError, RunnerUnavailableError
+from interactive import create_session, get_session
 from database import (
     create_user, get_user, verify_password, log_user_activity,
-    get_recent_activities, save_code, get_recent_codes
+    get_recent_activities, save_code, get_recent_codes, get_saved_code
 )
 
 app = Flask(__name__, template_folder="../frontend/templates", static_folder="../frontend/static")
-app.secret_key = secrets.token_hex(32)
 
-UPLOADS_DIR = "uploads"
-os.makedirs(UPLOADS_DIR, exist_ok=True)
 
+def secret_key():
+    configured = os.environ.get("CODESPHERE_SECRET_KEY")
+    if configured:
+        return configured
+    if os.environ.get("VERCEL"):
+        raise RuntimeError("Set CODESPHERE_SECRET_KEY for a stable login session")
+    path = Path(__file__).resolve().parents[1] / "data" / "flask-secret"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.write_text(secrets.token_hex(32), encoding="ascii")
+    return path.read_text(encoding="ascii").strip()
+
+
+app.secret_key = secret_key()
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("VERCEL"))
+
+
+@app.errorhandler(413)
+def request_too_large(error):
+    if request.path == "/run":
+        return jsonify({"output": "Request is too large (100 KiB maximum)"}), 413
+    if request.path.startswith("/terminal"):
+        return jsonify({"message": "Request is too large (100 KiB maximum)"}), 413
+    return error
 
 @app.route('/')
 def home():
-    return render_template('home.html', username=session.get("username"))
-
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(UPLOADS_DIR, filename)
+    return render_template('Home.html', username=session.get("username"))
 
 
 @app.route('/editor')
 def index():
     if 'username' not in session:
         return redirect(url_for('login_page'))
-    return render_template('index.html')
+    selected = None
+    if request.args.get("code_id"):
+        try:
+            selected = get_saved_code(session["username"], int(request.args["code_id"]))
+        except ValueError:
+            pass
+    return render_template('index.html', selected_code=selected)
 
 
-@app.route('/editor')
+@app.route('/html-editor')
 def html_editor():
+    if 'username' not in session:
+        return redirect(url_for('login_page'))
     return render_template('web-editor/weditor.html')
 
 @app.route('/signup')
@@ -42,17 +71,22 @@ def signup_page():
 
 @app.route('/auth/signup', methods=['POST'])
 def signup():
-    data = request.get_json(force=True)  
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"message": "Expected a JSON object"}), 400
 
     full_name = data.get("fullName")
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
 
-    if not full_name or not username or not email or not password:
+    if not all(isinstance(value, str) and value.strip() for value in (full_name, username, email, password)):
         return jsonify({"message": "All fields are required!"}), 400
+    full_name, username, email = full_name.strip(), username.strip(), email.strip()
+    if len(full_name) > 100 or len(username) > 50 or len(email) > 100 or len(password) < 8:
+        return jsonify({"message": "Check field lengths; password must have at least 8 characters"}), 400
 
-    result, status = create_user(full_name, username, email, password)  
+    result, status = create_user(full_name, username, email, password)
 
     if status == 201:
         session["username"] = username
@@ -83,8 +117,8 @@ def authenticate():
     if not verify_password(user["password"], password):
         return render_template("auth.html", error="Invalid password!")
 
-    session["username"] = username  
-    session["full_name"] = user["full_name"]  
+    session["username"] = username
+    session["full_name"] = user["full_name"]
     log_user_activity(username, "Logged In")
 
     return redirect(url_for('index'))
@@ -99,10 +133,10 @@ def profile():
     codes = get_recent_codes(username)
 
     return render_template(
-        "profile.html", 
-        full_name=session["full_name"], 
-        username=username, 
-        activities=activities, 
+        "profile.html",
+        full_name=session["full_name"],
+        username=username,
+        activities=activities,
         codes=codes
     )
 
@@ -116,9 +150,9 @@ def project():
     codes = get_recent_codes(username)
 
     return render_template(
-        "project.html", 
-        full_name=session["full_name"], 
-        username=username, 
+        "project.html",
+        full_name=session["full_name"],
+        username=username,
         codes=codes
     )
 
@@ -127,7 +161,7 @@ def project():
 def logout():
     if "username" in session:
         log_user_activity(session["username"], "Logged Out")
-    session.clear()  
+    session.clear()
     return redirect(url_for("home"))
 
 
@@ -137,7 +171,9 @@ def run_code():
         return jsonify({"message": "You must be logged in to run code!"}), 401
 
     username = session["username"]
-    data = request.get_json(force=True)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"output": "Expected a JSON object"}), 400
     language = data.get("language")
     code = data.get("code")
     user_input = data.get("input", "")
@@ -149,9 +185,77 @@ def run_code():
         save_code(username, code, language)
 
         return jsonify({"output": output})
-    except Exception as e:
+    except ValueError as e:
         return jsonify({"output": str(e)}), 400
+    except RunnerUnavailableError as e:
+        return jsonify({"output": str(e)}), 503
+    except RunnerTimeoutError as e:
+        return jsonify({"output": str(e)}), 504
+    except Exception:
+        app.logger.exception("Code execution request failed")
+        return jsonify({"output": "An internal error occurred"}), 500
+
+
+@app.route('/terminal', methods=['POST'])
+def start_terminal():
+    if "username" not in session:
+        return jsonify({"message": "You must be logged in to run code!"}), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"message": "Expected a JSON object"}), 400
+    try:
+        terminal = create_session(session["username"], data.get("language"), data.get("code"))
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+    except FileNotFoundError:
+        return jsonify({"message": "Docker CLI was not found on PATH"}), 503
+    try:
+        log_user_activity(session["username"], f"Ran {terminal.language} code")
+        save_code(session["username"], terminal.code, terminal.language)
+    except Exception:
+        app.logger.exception("Could not save terminal activity")
+    return jsonify({"id": terminal.id}), 201
+
+
+@app.route('/terminal/<session_id>', methods=['GET'])
+def poll_terminal(session_id):
+    if "username" not in session:
+        return jsonify({"message": "You must be logged in to run code!"}), 401
+    terminal = get_session(session_id, session["username"])
+    if terminal is None:
+        return jsonify({"message": "Terminal not found"}), 404
+    try:
+        offset = int(request.args.get("offset", "0"))
+        return jsonify(terminal.snapshot(offset))
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+
+
+@app.route('/terminal/<session_id>/input', methods=['POST'])
+def terminal_input(session_id):
+    if "username" not in session:
+        return jsonify({"message": "You must be logged in to run code!"}), 401
+    terminal = get_session(session_id, session["username"])
+    if terminal is None:
+        return jsonify({"message": "Terminal not found"}), 404
+    data = request.get_json(silent=True)
+    try:
+        terminal.send(data.get("input") if isinstance(data, dict) else None)
+        return jsonify({"ok": True})
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+
+
+@app.route('/terminal/<session_id>/stop', methods=['POST'])
+def stop_terminal(session_id):
+    if "username" not in session:
+        return jsonify({"message": "You must be logged in to run code!"}), 401
+    terminal = get_session(session_id, session["username"])
+    if terminal is None:
+        return jsonify({"message": "Terminal not found"}), 404
+    terminal.stop()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5500)
+    app.run(debug=False, port=5500)

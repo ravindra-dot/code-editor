@@ -1,4 +1,8 @@
 let editor;
+const initialEditor = window.initialEditor;
+if (initialEditor && ["python", "c", "cpp"].includes(initialEditor.language)) {
+    document.getElementById("language-select").value = initialEditor.language;
+}
 
 require.config({
     paths: {
@@ -8,8 +12,8 @@ require.config({
 
 require(['vs/editor/editor.main'], function () {
     editor = monaco.editor.create(document.getElementById('code'), {
-        value: `print("Hello World")`,
-        language: "python",
+        value: initialEditor ? initialEditor.code : `print("Hello World")`,
+        language: initialEditor ? (initialEditor.language === "python" ? "python" : "cpp") : "python",
         theme: "vs-dark",
         automaticLayout: true,
         fontSize: 14,
@@ -86,32 +90,75 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
-function runCode() {
-    const language = document.getElementById("language-select").value;
-    const code = editor.getValue();
-    const userInput = document.getElementById("input-box").value;
-    const outputBox = document.getElementById("output-box");
+const terminal = new Terminal({
+    cursorBlink: true,
+    convertEol: true,
+    fontSize: 13,
+    theme: { background: "#020617", foreground: "#e2e8f0" }
+});
+terminal.open(document.getElementById("terminal"));
+terminal.writeln("Press Run Code to start a program.");
+let activeSession = null;
+let inputQueue = Promise.resolve();
 
-    outputBox.textContent = "Running...";
-
-    const data = {
-        language: language,
-        code: code,
-        input: userInput
-    };
-
-    fetch("/run", {
+terminal.onData(data => {
+    if (!activeSession) return;
+    const id = activeSession;
+    inputQueue = inputQueue.then(() => fetch(`/terminal/${id}/input`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-    })
-    .then(res => res.json())
-    .then(data => {
-        outputBox.textContent = data.output;
-    })
-    .catch(err => {
-        outputBox.textContent = "Error: " + err.message;
-    });
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: data })
+    })).catch(() => {});
+});
+
+async function runCode() {
+    if (!editor || activeSession) return;
+    const runButton = document.getElementById("run-button");
+    const stopButton = document.getElementById("stop-button");
+    runButton.disabled = true;
+    terminal.clear();
+    terminal.writeln("Starting...");
+    try {
+        const response = await fetch("/terminal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                language: document.getElementById("language-select").value,
+                code: editor.getValue()
+            })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || "Could not start program");
+        activeSession = result.id;
+        stopButton.disabled = false;
+        terminal.clear();
+        terminal.focus();
+        let offset = 0;
+        while (activeSession === result.id) {
+            const pollResponse = await fetch(`/terminal/${result.id}?offset=${offset}`);
+            const poll = await pollResponse.json();
+            if (!pollResponse.ok) throw new Error(poll.message || "Terminal disconnected");
+            if (poll.output) terminal.write(poll.output);
+            offset = poll.offset;
+            if (poll.done) break;
+            await new Promise(resolve => setTimeout(resolve, 180));
+        }
+    } catch (error) {
+        terminal.writeln(`\r\n${error.message}`);
+    } finally {
+        activeSession = null;
+        runButton.disabled = false;
+        stopButton.disabled = true;
+    }
+}
+
+async function stopCode() {
+    if (!activeSession) return;
+    const id = activeSession;
+    document.getElementById("stop-button").disabled = true;
+    try {
+        await fetch(`/terminal/${id}/stop`, { method: "POST" });
+    } catch (error) {
+        terminal.writeln(`\r\n${error.message}`);
+    }
 }
