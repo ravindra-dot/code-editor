@@ -9,6 +9,9 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/6.0.0/xterm.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/6.0.0/xterm.js"></script>
+
     <!-- Monaco Editor Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 
@@ -18,6 +21,8 @@
             min-height: 450px;
             width: 100%;
         }
+
+        #terminal { height: 430px; padding: 10px; background: #020617; }
 
         @media (max-width: 768px) {
             #code {
@@ -37,7 +42,7 @@
                     CodeSphere
                 </a>
             </h1>
-            
+
             <!-- Mobile Menu Toggle Button -->
             <button id="menu-toggle" class="lg:hidden text-slate-400 hover:text-white focus:outline-none">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,12 +72,12 @@
 
     <!-- Main Workspace Container -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-            
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
             <!-- Editor Panel (Takes 3 columns on large screens) -->
-            <div class="lg:col-span-3 flex flex-col h-full">
+            <div class="flex flex-col h-full">
                 <div class="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-2xl flex flex-col flex-grow">
-                    
+
                     <!-- Toolbar Header -->
                     <div class="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
                         <div class="flex items-center space-x-3">
@@ -84,7 +89,7 @@
                             </select>
                         </div>
 
-                        <button onclick="runCode()" class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/10 hover:bg-emerald-400 active:scale-95 transition-all duration-150">
+                        <button id="run-button" onclick="runCode()" class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/10 hover:bg-emerald-400 active:scale-95 transition-all duration-150 disabled:opacity-50">
                             <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z"/>
                             </svg>
@@ -97,21 +102,13 @@
                 </div>
             </div>
 
-            <!-- IO Panel (Takes 1 column on large screens) -->
-            <div class="lg:col-span-1 space-y-5 bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-xl">
-                
-                <!-- Input Box Field -->
-                <div>
-                    <label for="input-box" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Input</label>
-                    <textarea id="input-box" rows="5" class="w-full bg-slate-950 text-slate-200 border border-slate-800 rounded-lg p-3 text-sm font-mono focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none transition-all placeholder-slate-600" placeholder="Provide program inputs here..."></textarea>
+            <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-xl overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                    <span class="text-sm font-semibold text-slate-200">Terminal</span>
+                    <button id="stop-button" onclick="stopCode()" disabled class="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-500 text-white disabled:opacity-40">Stop</button>
                 </div>
-
-                <!-- Output Box Field -->
-                <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Output</span>
-                    <pre id="output-box" class="w-full bg-slate-950 text-emerald-400 border border-slate-800 rounded-lg p-3 text-sm font-mono overflow-auto min-h-[180px] max-h-[300px] whitespace-pre-wrap selection:bg-slate-800" placeholder="Execution terminal output..."></pre>
-                </div>
-
+                <div id="terminal" aria-label="Interactive program terminal"></div>
+                <p class="px-4 py-2 text-xs text-slate-400">Click the terminal to type when your program asks for input.</p>
             </div>
 
         </div>
@@ -128,6 +125,9 @@
     </script>
 
     <!-- Project Core Execution Scripts -->
+    <script>
+        window.initialEditor = {{ {"code": selected_code.code, "language": selected_code.language}|tojson if selected_code else 'null'|safe }};
+    </script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 

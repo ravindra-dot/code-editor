@@ -19,7 +19,7 @@
                     CodeSphere
                 </a>
             </h1>
-            
+
             <!-- Mobile Menu Toggle Button -->
             <button id="menu-toggle" class="sm:hidden text-slate-400 hover:text-white focus:outline-none">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,7 +31,7 @@
             <nav id="nav-menu" class="hidden sm:flex items-center space-x-6 text-sm font-medium">
                 <a class="text-slate-300 hover:text-white transition-colors" href="/">Home</a>
                 <a class="text-slate-300 hover:text-white transition-colors" href="/project">Projects</a>
-                <a class="text-slate-300 hover:text-white transition-colors" href="/index">Editor</a>
+                <a class="text-slate-300 hover:text-white transition-colors" href="/editor">Editor</a>
                 <a class="text-slate-300 hover:text-white transition-colors" href="/profile">Profile</a>
                 <a class="px-4 py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200" href="{{ url_for('logout') }}">Logout</a>
             </nav>
@@ -41,7 +41,7 @@
         <div id="mobile-menu" class="hidden sm:hidden border-t border-slate-800 bg-slate-900 px-4 py-3 space-y-3">
             <a class="block text-slate-300 hover:text-white text-sm" href="/">Home</a>
             <a class="block text-slate-300 hover:text-white text-sm" href="/project">Projects</a>
-            <a class="block text-slate-300 hover:text-white text-sm" href="/index">Editor</a>
+            <a class="block text-slate-300 hover:text-white text-sm" href="/editor">Editor</a>
             <a class="block text-slate-300 hover:text-white text-sm" href="/profile">Profile</a>
             <a class="block text-center py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400" href="{{ url_for('logout') }}">Logout</a>
         </div>
@@ -54,7 +54,7 @@
                 <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <h2 class="text-sm font-semibold tracking-wider text-slate-300 uppercase font-mono">Web Workspace</h2>
             </div>
-            
+
             <!-- Editor Toggles + Run Controls -->
             <div class="flex items-center flex-wrap gap-2">
                 <button id="btn-html" onclick="toggleHTML()" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-all">
@@ -77,11 +77,11 @@
     </div>
 
     <!-- Main Workspace Split Panel -->
-    <main class="flex-grow flex flex-col md:flex-row h-[calc(100vh-120px)] w-full overflow-hidden">
-        
+    <main class="flex-grow flex flex-col md:flex-row md:h-[calc(100vh-120px)] w-full">
+
         <!-- Left Side: Editors Container -->
-        <div id="editors-container" class="w-full md:w-1/2 flex flex-col border-r border-slate-800 divide-y divide-slate-800 bg-slate-950">
-            
+        <div id="editors-container" class="w-full md:w-1/2 flex flex-col min-h-[480px] md:min-h-0 border-r border-slate-800 divide-y divide-slate-800 bg-slate-950">
+
             <!-- HTML Panel -->
             <div id="panel-html" class="flex-1 flex flex-col overflow-hidden transition-all duration-200">
                 <div class="bg-slate-900/60 px-4 py-1.5 border-b border-slate-800/60 flex items-center justify-between">
@@ -105,34 +105,18 @@
                 </div>
                 <textarea id="jsCode" class="flex-grow bg-slate-950 p-4 font-mono text-sm text-slate-300 focus:outline-none resize-none custom-scrollbar" placeholder="// Write your JavaScript logic here"></textarea>
             </div>
-            
+
         </div>
 
         <!-- Right Side: Realtime Iframe Preview -->
-        <div id="preview-container" class="w-full md:w-1/2 bg-white flex flex-col h-full">
+        <div id="preview-container" class="w-full md:w-1/2 bg-white flex flex-col min-h-[320px] md:min-h-0 md:h-full">
             <div class="bg-slate-900 border-b border-slate-800 px-4 py-1.5 flex items-center justify-between text-slate-400">
                 <span class="text-[11px] font-bold uppercase tracking-wider font-mono">Live Preview Browser</span>
             </div>
-            <iframe id="preview" src="about:blank" class="w-full flex-grow bg-white border-none"></iframe>
+            <iframe id="preview" sandbox="allow-scripts" referrerpolicy="no-referrer" title="HTML preview" class="w-full flex-grow bg-white border-none"></iframe>
         </div>
 
     </main>
-
-    <!-- Low Resolution Overlay Dialog Box -->
-    <div id="alertMessage" class="hidden fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-sm shadow-2xl space-y-4">
-            <div class="w-12 h-12 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white">Bigger Display Required</h3>
-            <p class="text-sm text-slate-400">Please make sure you have a larger screen view to use the Multi-Panel Web Code Editor workspace efficiently.</p>
-            <button onclick="reloadPage()" class="w-full py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-500 transition-colors">
-                Try Again
-            </button>
-        </div>
-    </div>
 
     <!-- Custom Utilities Scrollbar Styles -->
     <style>
@@ -154,7 +138,7 @@
 
     <!-- Scripts Integration Linkage -->
     <script src="{{ url_for('static', filename='js/wscript.js') }}"></script>
-    
+
     <!-- Mobile Menu Interactivity Script -->
     <script>
         const menuToggle = document.getElementById('menu-toggle');

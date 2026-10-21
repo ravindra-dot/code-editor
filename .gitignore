@@ -3,4 +3,5 @@
 uploads/
 **/env/
 .env
+data/
 .pyc

@@ -8,15 +8,8 @@ function RunCode() {
     const jsCode = document.getElementById('jsCode').value;
 
     const previewFrame = document.getElementById('preview');
-    const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-
-    previewDoc.open();
-    previewDoc.write(htmlCode + cssCode);
-    previewDoc.close();
-
-    const script = previewDoc.createElement("script");
-    script.textContent = jsCode;
-    previewDoc.body.appendChild(script);
+    const safeScript = jsCode.replace(/<\/script/gi, '<\\/script');
+    previewFrame.srcdoc = htmlCode + cssCode + '<script>' + safeScript + '<\/script>';
 }
 
 function toggleHTML() {
@@ -87,21 +80,3 @@ function ShowOutput() {
         editors.classList.add("md:w-full");
     }
 }
-
-function checkDisplaySize() {
-    const alertBox = document.getElementById('alertMessage');
-    if (window.innerWidth < 750) {
-        alertBox.classList.remove('hidden');
-    } else {
-        alertBox.classList.add('hidden');
-    }
-}
-
-function reloadPage() {
-    location.reload();
-}
-
-window.addEventListener('DOMContentLoaded', function() {
-    checkDisplaySize();
-    window.addEventListener('resize', checkDisplaySize);
-});

@@ -1,143 +1,140 @@
-import mysql.connector
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+"""Local SQLite storage for accounts, activity, and saved code."""
 
-# Configure MySQL Connection
-db_config = {
-    "host": "localhost",
-    "user": "root",
-    "password": "Ravi1234",
-    "database": "CodeSphereDB"
-}
+import os
+import sqlite3
+from contextlib import closing
+from datetime import datetime, timezone
+from pathlib import Path
+
+from werkzeug.security import check_password_hash, generate_password_hash
+
+
+DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[1] / "data" / "codesphere.sqlite3"
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS user_activities (
+    id INTEGER PRIMARY KEY,
+    username TEXT,
+    action TEXT NOT NULL,
+    timestamp TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS codes (
+    id INTEGER PRIMARY KEY,
+    username TEXT,
+    code TEXT NOT NULL,
+    language TEXT NOT NULL,
+    timestamp TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_activities_user_time ON user_activities(username, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_codes_user_time ON codes(username, timestamp DESC);
+"""
+
+
+def database_path():
+    return Path(os.environ.get("CODESPHERE_DB_PATH", DEFAULT_DATABASE_PATH)).expanduser().resolve()
+
 
 def get_db_connection():
-    conn = mysql.connector.connect(**db_config)
-    return conn, conn.cursor(dictionary=True)
+    path = database_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA busy_timeout = 10000")
+    connection.executescript(SCHEMA)
+    return connection
 
-# 1. Creating a user on db
+
+def _now():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
 def create_user(full_name, username, email, password):
-    """Creates a new user with a hashed password"""
-    conn, cursor = get_db_connection()
-    
-    try:
-        # Check if username exists
-        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
-        if cursor.fetchone():
+    """Create an account, storing only a password hash."""
+    with closing(get_db_connection()) as connection:
+        if connection.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
             return {"message": "Username already taken!"}, 400
-
-        # Check if email exists
-        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
-        if cursor.fetchone():
+        if connection.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
             return {"message": "Email already registered!"}, 400
+        try:
+            with connection:
+                connection.execute(
+                    "INSERT INTO users (full_name, username, email, password) VALUES (?, ?, ?, ?)",
+                    (full_name, username, email, generate_password_hash(password)),
+                )
+                connection.execute(
+                    "INSERT INTO user_activities (username, action, timestamp) VALUES (?, ?, ?)",
+                    (username, "Account Created", _now()),
+                )
+        except sqlite3.IntegrityError:
+            return {"message": "Username or email already registered!"}, 400
+    return {"message": "Signup successful!"}, 201
 
-        # Insert new user
-        hashed_password = generate_password_hash(password)
-        query = "INSERT INTO users (full_name, username, email, password) VALUES (%s, %s, %s, %s)"
-        cursor.execute(query, (full_name, username, email, hashed_password))
-        conn.commit()
 
-        # Log activity
-        log_user_activity(username, "Account Created")
-        return {"message": "Signup successful!"}, 201
-
-    finally:
-        cursor.close()
-        conn.close()
-
-# 2. Getting user info from db
 def get_user(username):
-    """Fetches a user by username"""
-    conn, cursor = get_db_connection()
-    try:
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-        return cursor.fetchone() # Returns a dict or None
-    finally:
-        cursor.close()
-        conn.close()
+    with closing(get_db_connection()) as connection:
+        row = connection.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        return dict(row) if row else None
 
-# 3. Password verification
+
 def verify_password(stored_password, provided_password):
-    """Checks if the provided password matches the stored hashed password"""
     return check_password_hash(stored_password, provided_password)
 
-# 4. Storing activities (Max 10 records)
+
 def log_user_activity(username, action):
-    """Logs user activity with a maximum of 10 records per user"""
-    conn, cursor = get_db_connection()
-    try:
-        # Insert activity
-        query = "INSERT INTO user_activities (username, action, timestamp) VALUES (%s, %s, %s)"
-        cursor.execute(query, (username, action, datetime.utcnow()))
-        conn.commit()
+    with closing(get_db_connection()) as connection:
+        with connection:
+            connection.execute(
+                "INSERT INTO user_activities (username, action, timestamp) VALUES (?, ?, ?)",
+                (username, action, _now()),
+            )
+            connection.execute(
+                "DELETE FROM user_activities WHERE username = ? AND id NOT IN "
+                "(SELECT id FROM user_activities WHERE username = ? ORDER BY timestamp DESC, id DESC LIMIT 10)",
+                (username, username),
+            )
 
-        # Count total activities
-        cursor.execute("SELECT COUNT(*) as total FROM user_activities WHERE username = %s", (username,))
-        total_activities = cursor.fetchone()['total']
 
-        # If exceeds 10, delete the oldest
-        if total_activities > 10:
-            # Find oldest ID
-            cursor.execute("SELECT id FROM user_activities WHERE username = %s ORDER BY timestamp ASC LIMIT 1", (username,))
-            oldest_id = cursor.fetchone()['id']
-            
-            # Delete oldest
-            cursor.execute("DELETE FROM user_activities WHERE id = %s", (oldest_id,))
-            conn.commit()
-    finally:
-        cursor.close()
-        conn.close()
-
-# 5. Get recent activities
 def get_recent_activities(username, limit=5):
-    """Fetch the latest user activities (default: last 5)"""
-    conn, cursor = get_db_connection()
-    try:
-        query = "SELECT * FROM user_activities WHERE username = %s ORDER BY timestamp DESC LIMIT %s"
-        cursor.execute(query, (username, limit))
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
+    with closing(get_db_connection()) as connection:
+        rows = connection.execute(
+            "SELECT * FROM user_activities WHERE username = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
+            (username, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
-# 6. Save code on db history (Max 10 records)
+
 def save_code(username, code, language):
-    """Saves user code with a maximum limit of 10 records per user"""
-    print(f"Saving {language} code for {username}")  
-    conn, cursor = get_db_connection()
-    
-    try:
-        # Count total codes
-        cursor.execute("SELECT COUNT(*) as total FROM codes WHERE username = %s", (username,))
-        total_codes = cursor.fetchone()['total']
+    with closing(get_db_connection()) as connection:
+        with connection:
+            connection.execute(
+                "INSERT INTO codes (username, code, language, timestamp) VALUES (?, ?, ?, ?)",
+                (username, code, language, _now()),
+            )
+            connection.execute(
+                "DELETE FROM codes WHERE username = ? AND id NOT IN "
+                "(SELECT id FROM codes WHERE username = ? ORDER BY timestamp DESC, id DESC LIMIT 10)",
+                (username, username),
+            )
 
-        # If 10 or more, delete the oldest one
-        if total_codes >= 10:
-            cursor.execute("SELECT id FROM codes WHERE username = %s ORDER BY timestamp ASC LIMIT 1", (username,))
-            oldest_code = cursor.fetchone()
-            if oldest_code:
-                print(f"Deleting oldest {language} code") 
-                cursor.execute("DELETE FROM codes WHERE id = %s", (oldest_code['id'],))
-                conn.commit()
 
-        # Insert new code
-        query = "INSERT INTO codes (username, code, language, timestamp) VALUES (%s, %s, %s, %s)"
-        cursor.execute(query, (username, code, language, datetime.utcnow()))
-        conn.commit()
-        
-        print(f"{language} code saved successfully with MySQL Row ID: {cursor.lastrowid}")  
-    finally:
-        cursor.close()
-        conn.close()
-
-# 7. Get recent codes 
 def get_recent_codes(username, limit=10):
-    """Fetch the latest 10 codes from the user"""
-    conn, cursor = get_db_connection()
-    try:
-        query = "SELECT * FROM codes WHERE username = %s ORDER BY timestamp DESC LIMIT %s"
-        cursor.execute(query, (username, limit))
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
-print("all set")
+    with closing(get_db_connection()) as connection:
+        rows = connection.execute(
+            "SELECT * FROM codes WHERE username = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
+            (username, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_saved_code(username, code_id):
+    with closing(get_db_connection()) as connection:
+        row = connection.execute(
+            "SELECT * FROM codes WHERE username = ? AND id = ?", (username, code_id)
+        ).fetchone()
+        return dict(row) if row else None
