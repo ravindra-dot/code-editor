@@ -17,10 +17,10 @@ sessions_lock = threading.Lock()
 
 
 class TerminalSession:
-    def __init__(self, username, language, code):
+    def __init__(self, owner, language, code):
         validate_source(language, code)
         self.id = uuid.uuid4().hex
-        self.username = username
+        self.owner = owner
         self.language = language
         self.code = code
         self.container_name = f"codesphere-terminal-{self.id}"
@@ -111,7 +111,7 @@ class TerminalSession:
             }
 
 
-def create_session(username, language, code):
+def create_session(owner, language, code):
     with sessions_lock:
         expired = [key for key, item in sessions.items() if item.done and time.monotonic() - item.created > 300]
         for key in expired:
@@ -119,14 +119,16 @@ def create_session(username, language, code):
         active = sum(not item.done for item in sessions.values())
         if active >= 8:
             raise ValueError("Too many programs are running")
-        item = TerminalSession(username, language, code)
+        if sum(not item.done and item.owner == owner for item in sessions.values()) >= 2:
+            raise ValueError("Too many programs are running in this browser")
+        item = TerminalSession(owner, language, code)
         sessions[item.id] = item
         return item
 
 
-def get_session(session_id, username):
+def get_session(session_id, owner):
     with sessions_lock:
         item = sessions.get(session_id)
-    if item is None or item.username != username:
+    if item is None or item.owner != owner:
         return None
     return item

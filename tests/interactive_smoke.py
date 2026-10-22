@@ -41,9 +41,6 @@ def run_case(client, language, code, prompt, expected):
 def main():
     app_module.app.config["TESTING"] = True
     client = app_module.app.test_client()
-    assert client.post("/terminal", json={"language": "python", "code": "print(1)"}).status_code == 401
-    with client.session_transaction() as session:
-        session["username"] = "terminal_test"
     editor_page = client.get("/editor")
     assert editor_page.status_code == 200
     assert b'id="terminal"' in editor_page.data
@@ -56,8 +53,6 @@ def main():
         assert response.status_code == 201, response.json
         session_id = response.json["id"]
         other = app_module.app.test_client()
-        with other.session_transaction() as session:
-            session["username"] = "someone_else"
         assert other.get(f"/terminal/{session_id}").status_code == 404
         assert other.post(f"/terminal/{session_id}/input", json={"input": "x"}).status_code == 404
         assert other.post(f"/terminal/{session_id}/stop").status_code == 404
@@ -69,7 +64,7 @@ def main():
             time.sleep(0.1)
         assert client.get(f"/terminal/{session_id}").json["done"]
         print("Terminal ownership and Stop: OK")
-    print("Terminal authentication: OK")
+    print("Anonymous terminal access and ownership: OK")
 
 
 if __name__ == "__main__":

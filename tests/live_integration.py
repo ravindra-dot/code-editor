@@ -33,6 +33,8 @@ def main():
             expect(client.get("/editor"), 200, "Editor page")
             expect(client.get("/html-editor"), 200, "HTML editor")
             expect(client.get("/logout"), 302, "Log out")
+            expect(client.get("/editor"), 200, "Anonymous editor")
+            expect(client.post("/save", json={"language": "python", "code": "print(1)"}), 401, "Anonymous save rejected")
             expect(client.post("/auth/login", data={
                 "username": "integration_test", "password": "test-password-123",
             }), 302, "Log in")
@@ -49,6 +51,7 @@ def main():
                 expect(response, 200, f"Run {language}")
                 if response.json.get("output") != expected:
                     raise AssertionError(f"Run {language}: unexpected output")
+                expect(client.post("/save", json={"language": language, "code": code}), 201, f"Save {language}")
 
             expect(client.get("/profile"), 200, "Profile page")
             expect(client.get("/project"), 200, "Project page")
