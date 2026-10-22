@@ -15,6 +15,9 @@ venv/
 !.env.example
 !.env.sample
 
+# Local agent instructions
+AGENTS.md
+
 # Local database and generated uploads
 data/
 uploads/
