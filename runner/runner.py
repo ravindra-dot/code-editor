@@ -42,7 +42,7 @@ def main():
     else:
         compiler = "gcc" if language == "c" else "g++"
         compile_status, compile_output = _run(
-            [compiler, filename, "-o", "program"], "", COMPILE_TIMEOUT
+            [compiler, filename, "-I/usr/include/eigen3", "-o", "program"], "", COMPILE_TIMEOUT
         )
         if compile_status != 0:
             output = compile_output or "Compilation failed"

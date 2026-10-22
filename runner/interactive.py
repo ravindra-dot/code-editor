@@ -43,7 +43,7 @@ def main():
         compiler = "gcc" if language == "c" else "g++"
         try:
             result = subprocess.run(
-                [compiler, source, "-o", "/work/program"],
+                [compiler, source, "-I/usr/include/eigen3", "-o", "/work/program"],
                 capture_output=True, timeout=10, check=False,
             )
         except subprocess.TimeoutExpired:

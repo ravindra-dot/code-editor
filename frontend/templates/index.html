@@ -53,20 +53,32 @@
             <!-- Navigation Links -->
             <nav id="nav-menu" class="hidden lg:flex items-center space-x-6 text-sm font-medium">
                 <a class="text-slate-300 hover:text-white transition-colors" href="/">Home</a>
+                {% if session.get('username') %}
                 <a class="text-slate-300 hover:text-white transition-colors" href="/project">Projects</a>
                 <a class="text-slate-300 hover:text-white transition-colors" href="/profile">Profile</a>
+                {% endif %}
                 <a class="text-slate-300 hover:text-white transition-colors" href="{{ url_for('html_editor') }}">HTML Editor</a>
+                {% if session.get('username') %}
                 <a class="px-4 py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200" href="{{ url_for('logout') }}">Logout</a>
+                {% else %}
+                <a class="text-blue-400 hover:text-blue-300" href="{{ url_for('login_page') }}">Log in</a>
+                {% endif %}
             </nav>
         </div>
 
         <!-- Mobile Dropout Menu -->
         <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-800 bg-slate-900 px-4 py-3 space-y-3">
             <a class="block text-slate-300 hover:text-white text-sm" href="/">Home</a>
+            {% if session.get('username') %}
             <a class="block text-slate-300 hover:text-white text-sm" href="/project">Projects</a>
             <a class="block text-slate-300 hover:text-white text-sm" href="/profile">Profile</a>
+            {% endif %}
             <a class="block text-slate-300 hover:text-white text-sm" href="{{ url_for('html_editor') }}">HTML Editor</a>
+            {% if session.get('username') %}
             <a class="block text-center py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400" href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+            <a class="block text-blue-400 text-sm" href="{{ url_for('login_page') }}">Log in</a>
+            {% endif %}
         </div>
     </header>
 
@@ -89,16 +101,21 @@
                             </select>
                         </div>
 
+                        <div class="flex flex-wrap items-center gap-2">
+                        <button id="theme-toggle" type="button" class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800" aria-label="Toggle editor theme">Light editor</button>
+                        <button id="save-button" type="button" class="px-3 py-2 text-xs font-semibold rounded-lg border border-blue-500/40 text-blue-300 hover:bg-blue-500/10">Save code</button>
                         <button id="run-button" onclick="runCode()" class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/10 hover:bg-emerald-400 active:scale-95 transition-all duration-150 disabled:opacity-50">
                             <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z"/>
                             </svg>
                             <span>Run Code</span>
                         </button>
+                        </div>
                     </div>
 
                     <!-- Monaco Container Target -->
                     <div id="code" class="bg-slate-950"></div>
+                    <p id="editor-status" role="status" class="px-4 py-2 text-xs text-slate-400">Run without an account. Log in to save code.</p>
                 </div>
             </div>
 
