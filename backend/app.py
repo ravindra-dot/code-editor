@@ -1,22 +1,31 @@
 import os
 import secrets
+import threading
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, redirect, session, url_for
-from run_code import execute_code, RunnerTimeoutError, RunnerUnavailableError
+from werkzeug.middleware.proxy_fix import ProxyFix
+from run_code import execute_code, validate_source, RunnerTimeoutError, RunnerUnavailableError
 from interactive import create_session, get_session
+from limits import allow
 from database import (
     create_user, get_user, verify_password, log_user_activity,
     get_recent_activities, save_code, get_recent_codes, get_saved_code
 )
 
 app = Flask(__name__, template_folder="../frontend/templates", static_folder="../frontend/static")
+PUBLIC_MODE = os.environ.get("CODESPHERE_PUBLIC") == "1"
+if PUBLIC_MODE:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+sync_run_slots = threading.BoundedSemaphore(4)
 
 
 def secret_key():
     configured = os.environ.get("CODESPHERE_SECRET_KEY")
     if configured:
+        if PUBLIC_MODE and len(configured) < 32:
+            raise RuntimeError("CODESPHERE_SECRET_KEY must be at least 32 characters in public mode")
         return configured
-    if os.environ.get("VERCEL"):
+    if PUBLIC_MODE or os.environ.get("VERCEL"):
         raise RuntimeError("Set CODESPHERE_SECRET_KEY for a stable login session")
     path = Path(__file__).resolve().parents[1] / "data" / "flask-secret"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -29,7 +38,25 @@ app.secret_key = secret_key()
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("VERCEL"))
+app.config["SESSION_COOKIE_SECURE"] = PUBLIC_MODE or bool(os.environ.get("VERCEL"))
+
+
+@app.before_request
+def public_rate_limit():
+    if not PUBLIC_MODE or request.method != "POST":
+        return None
+    origin = request.headers.get("Origin")
+    if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+        return jsonify({"message": "Invalid request origin"}), 403
+    category = {
+        "/run": ("execution", 10),
+        "/terminal": ("execution", 10),
+        "/auth/login": ("auth", 8),
+        "/auth/signup": ("auth", 8),
+    }.get(request.path)
+    if category and not allow(request.remote_addr or "unknown", *category):
+        return jsonify({"message": "Too many requests; try again in a minute"}), 429
+    return None
 
 
 @app.errorhandler(413)
@@ -47,10 +74,8 @@ def home():
 
 @app.route('/editor')
 def index():
-    if 'username' not in session:
-        return redirect(url_for('login_page'))
     selected = None
-    if request.args.get("code_id"):
+    if request.args.get("code_id") and "username" in session:
         try:
             selected = get_saved_code(session["username"], int(request.args["code_id"]))
         except ValueError:
@@ -60,8 +85,6 @@ def index():
 
 @app.route('/html-editor')
 def html_editor():
-    if 'username' not in session:
-        return redirect(url_for('login_page'))
     return render_template('web-editor/weditor.html')
 
 @app.route('/signup')
@@ -167,10 +190,6 @@ def logout():
 
 @app.route('/run', methods=['POST'])
 def run_code():
-    if "username" not in session:
-        return jsonify({"message": "You must be logged in to run code!"}), 401
-
-    username = session["username"]
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"output": "Expected a JSON object"}), 400
@@ -179,10 +198,12 @@ def run_code():
     user_input = data.get("input", "")
 
     try:
-        output = execute_code(language, code, user_input)
-
-        log_user_activity(username, f"Ran {language} code")
-        save_code(username, code, language)
+        if not sync_run_slots.acquire(blocking=False):
+            return jsonify({"output": "Server is busy; try again shortly"}), 429
+        try:
+            output = execute_code(language, code, user_input)
+        finally:
+            sync_run_slots.release()
 
         return jsonify({"output": output})
     except ValueError as e:
@@ -198,30 +219,43 @@ def run_code():
 
 @app.route('/terminal', methods=['POST'])
 def start_terminal():
-    if "username" not in session:
-        return jsonify({"message": "You must be logged in to run code!"}), 401
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"message": "Expected a JSON object"}), 400
     try:
-        terminal = create_session(session["username"], data.get("language"), data.get("code"))
+        validate_source(data.get("language"), data.get("code"))
+        owner = session.get("execution_id")
+        if owner is None:
+            owner = secrets.token_urlsafe(32)
+            session["execution_id"] = owner
+        terminal = create_session(owner, data.get("language"), data.get("code"))
     except ValueError as error:
         return jsonify({"message": str(error)}), 400
     except FileNotFoundError:
         return jsonify({"message": "Docker CLI was not found on PATH"}), 503
-    try:
-        log_user_activity(session["username"], f"Ran {terminal.language} code")
-        save_code(session["username"], terminal.code, terminal.language)
-    except Exception:
-        app.logger.exception("Could not save terminal activity")
     return jsonify({"id": terminal.id}), 201
+
+
+@app.route('/save', methods=['POST'])
+def save_current_code():
+    if "username" not in session:
+        return jsonify({"message": "Log in to save code"}), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"message": "Expected a JSON object"}), 400
+    language, code = data.get("language"), data.get("code")
+    try:
+        validate_source(language, code)
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+    save_code(session["username"], code, language)
+    log_user_activity(session["username"], f"Saved {language} code")
+    return jsonify({"message": "Code saved"}), 201
 
 
 @app.route('/terminal/<session_id>', methods=['GET'])
 def poll_terminal(session_id):
-    if "username" not in session:
-        return jsonify({"message": "You must be logged in to run code!"}), 401
-    terminal = get_session(session_id, session["username"])
+    terminal = get_session(session_id, session.get("execution_id"))
     if terminal is None:
         return jsonify({"message": "Terminal not found"}), 404
     try:
@@ -233,9 +267,7 @@ def poll_terminal(session_id):
 
 @app.route('/terminal/<session_id>/input', methods=['POST'])
 def terminal_input(session_id):
-    if "username" not in session:
-        return jsonify({"message": "You must be logged in to run code!"}), 401
-    terminal = get_session(session_id, session["username"])
+    terminal = get_session(session_id, session.get("execution_id"))
     if terminal is None:
         return jsonify({"message": "Terminal not found"}), 404
     data = request.get_json(silent=True)
@@ -248,9 +280,7 @@ def terminal_input(session_id):
 
 @app.route('/terminal/<session_id>/stop', methods=['POST'])
 def stop_terminal(session_id):
-    if "username" not in session:
-        return jsonify({"message": "You must be logged in to run code!"}), 401
-    terminal = get_session(session_id, session["username"])
+    terminal = get_session(session_id, session.get("execution_id"))
     if terminal is None:
         return jsonify({"message": "Terminal not found"}), 404
     terminal.stop()

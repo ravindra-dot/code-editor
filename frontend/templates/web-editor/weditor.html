@@ -30,20 +30,32 @@
             <!-- Navigation Links -->
             <nav id="nav-menu" class="hidden sm:flex items-center space-x-6 text-sm font-medium">
                 <a class="text-slate-300 hover:text-white transition-colors" href="/">Home</a>
+                {% if session.get('username') %}
                 <a class="text-slate-300 hover:text-white transition-colors" href="/project">Projects</a>
+                {% endif %}
                 <a class="text-slate-300 hover:text-white transition-colors" href="/editor">Editor</a>
+                {% if session.get('username') %}
                 <a class="text-slate-300 hover:text-white transition-colors" href="/profile">Profile</a>
                 <a class="px-4 py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200" href="{{ url_for('logout') }}">Logout</a>
+                {% else %}
+                <a class="text-blue-400 hover:text-blue-300" href="{{ url_for('login_page') }}">Log in</a>
+                {% endif %}
             </nav>
         </div>
 
         <!-- Mobile Dropout Menu -->
         <div id="mobile-menu" class="hidden sm:hidden border-t border-slate-800 bg-slate-900 px-4 py-3 space-y-3">
             <a class="block text-slate-300 hover:text-white text-sm" href="/">Home</a>
+            {% if session.get('username') %}
             <a class="block text-slate-300 hover:text-white text-sm" href="/project">Projects</a>
+            {% endif %}
             <a class="block text-slate-300 hover:text-white text-sm" href="/editor">Editor</a>
+            {% if session.get('username') %}
             <a class="block text-slate-300 hover:text-white text-sm" href="/profile">Profile</a>
             <a class="block text-center py-2 text-sm rounded-lg bg-rose-500/10 text-rose-400" href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+            <a class="block text-blue-400 text-sm" href="{{ url_for('login_page') }}">Log in</a>
+            {% endif %}
         </div>
     </header>
 

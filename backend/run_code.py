@@ -65,7 +65,7 @@ def docker_command(container_name, interactive=False):
         "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges=true",
         "--user", "65534:65534",
-        "--memory", "256m", "--memory-swap", "256m",
+        "--memory", "512m", "--memory-swap", "512m",
         "--cpus", "1", "--pids-limit", "64",
         "--tmpfs", "/work:rw,exec,nosuid,nodev,size=32m,mode=1777",
         "--tmpfs", "/tmp:rw,nosuid,nodev,size=32m,mode=1777",

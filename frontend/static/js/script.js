@@ -1,5 +1,34 @@
 let editor;
 const initialEditor = window.initialEditor;
+const draftKey = "codesphere-editor-draft";
+let draft = null;
+try { draft = JSON.parse(sessionStorage.getItem(draftKey)); } catch (_) { /* Ignore a damaged draft. */ }
+if (!initialEditor && draft && ["python", "c", "cpp"].includes(draft.language)) {
+    document.getElementById("language-select").value = draft.language;
+}
+const themeButton = document.getElementById("theme-toggle");
+const editorStatus = document.getElementById("editor-status");
+let editorTheme = "dark";
+try {
+    if (localStorage.getItem("codesphere-editor-theme") === "light") editorTheme = "light";
+} catch (_) { /* Storage can be disabled by the browser. */ }
+function applyEditorTheme() {
+    if (editor) monaco.editor.setTheme(editorTheme === "light" ? "vs" : "vs-dark");
+    document.getElementById("code").style.background = editorTheme === "light" ? "#ffffff" : "#020617";
+    if (typeof terminal !== "undefined") {
+        terminal.options.theme = editorTheme === "light"
+            ? { background: "#f8fafc", foreground: "#0f172a" }
+            : { background: "#020617", foreground: "#e2e8f0" };
+        document.getElementById("terminal").style.background = editorTheme === "light" ? "#f8fafc" : "#020617";
+    }
+    themeButton.textContent = editorTheme === "light" ? "Dark editor" : "Light editor";
+    themeButton.setAttribute("aria-pressed", String(editorTheme === "light"));
+}
+themeButton.addEventListener("click", () => {
+    editorTheme = editorTheme === "light" ? "dark" : "light";
+    try { localStorage.setItem("codesphere-editor-theme", editorTheme); } catch (_) { /* Keep the current theme. */ }
+    applyEditorTheme();
+});
 if (initialEditor && ["python", "c", "cpp"].includes(initialEditor.language)) {
     document.getElementById("language-select").value = initialEditor.language;
 }
@@ -11,17 +40,76 @@ require.config({
 });
 
 require(['vs/editor/editor.main'], function () {
+    registerCompletions();
     editor = monaco.editor.create(document.getElementById('code'), {
-        value: initialEditor ? initialEditor.code : `print("Hello World")`,
-        language: initialEditor ? (initialEditor.language === "python" ? "python" : "cpp") : "python",
-        theme: "vs-dark",
+        value: initialEditor ? initialEditor.code : (typeof draft?.code === "string" ? draft.code : `print("Hello World")`),
+        language: document.getElementById("language-select").value === "python" ? "python" : "cpp",
+        theme: editorTheme === "light" ? "vs" : "vs-dark",
         automaticLayout: true,
         fontSize: 14,
+        quickSuggestions: true,
+        suggestOnTriggerCharacters: true,
+        wordBasedSuggestions: "currentDocument",
+        autoClosingBrackets: "always",
+        autoClosingQuotes: "always",
+        formatOnType: true,
         minimap: {
             enabled: true
         }
     });
+    editor.onDidChangeModelContent(rememberDraft);
+    applyEditorTheme();
 });
+
+function rememberDraft() {
+    if (!editor) return;
+    try {
+        sessionStorage.setItem(draftKey, JSON.stringify({
+            language: document.getElementById("language-select").value,
+            code: editor.getValue()
+        }));
+    } catch (_) { /* Storage can be disabled by the browser. */ }
+}
+
+const completions = {
+    python: [
+        ["print", "print(${1:value})"], ["input", "input(${1:prompt})"],
+        ["def", "def ${1:name}(${2:args}):\n    ${0:pass}"],
+        ["for", "for ${1:item} in ${2:items}:\n    ${0:pass}"],
+        ["if", "if ${1:condition}:\n    ${0:pass}"],
+        ["class", "class ${1:Name}:\n    def __init__(self):\n        ${0:pass}"],
+        ["try", "try:\n    ${1:pass}\nexcept ${2:Exception} as error:\n    ${0:pass}"],
+        ["import", "import ${1:module}"]
+    ],
+    cpp: [
+        ["include", "#include <${1:iostream}>"],
+        ["main", "int main() {\n    ${0:return 0;}\n}"],
+        ["for", "for (int ${1:i} = 0; ${1:i} < ${2:n}; ++${1:i}) {\n    ${0}\n}"],
+        ["if", "if (${1:condition}) {\n    ${0}\n}"],
+        ["cout", "std::cout << ${1:value} << std::endl;"],
+        ["cin", "std::cin >> ${1:value};"],
+        ["printf", "printf(\"${1:format}\\n\"${2});"],
+        ["scanf", "scanf(\"${1:format}\", ${2:&value});"]
+    ]
+};
+function registerCompletions() {
+    for (const language of ["python", "cpp"]) {
+        monaco.languages.registerCompletionItemProvider(language, {
+            provideCompletionItems(model, position) {
+                const word = model.getWordUntilPosition(position);
+                const range = {
+                    startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+                    startColumn: word.startColumn, endColumn: word.endColumn
+                };
+                return { suggestions: completions[language].map(([label, insertText]) => ({
+                    label, insertText, range,
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                })) };
+            }
+        });
+    }
+}
 
 const languageMap = {
     python: "python",
@@ -43,6 +131,7 @@ document.getElementById("language-select").addEventListener("change", function (
 
     monaco.editor.setModelLanguage(editor.getModel(), monacoLang);
     editor.setValue(starterCode[selected]);
+    rememberDraft();
 });
 
 const fileInputElement = document.getElementById("fileInput");
@@ -97,7 +186,33 @@ const terminal = new Terminal({
     theme: { background: "#020617", foreground: "#e2e8f0" }
 });
 terminal.open(document.getElementById("terminal"));
+applyEditorTheme();
 terminal.writeln("Press Run Code to start a program.");
+document.getElementById("save-button").addEventListener("click", async () => {
+    if (!editor) return;
+    const button = document.getElementById("save-button");
+    button.disabled = true;
+    try {
+        const response = await fetch("/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language: document.getElementById("language-select").value, code: editor.getValue() })
+        });
+        const result = await response.json();
+        editorStatus.textContent = response.status === 401 ? "Log in to save code. Your editor content stays here." : result.message;
+        if (response.status === 401) {
+            const link = document.createElement("a");
+            link.href = "/login";
+            link.textContent = " Log in";
+            link.className = "text-blue-400 underline";
+            editorStatus.append(link);
+        }
+    } catch (error) {
+        editorStatus.textContent = `Save failed: ${error.message}`;
+    } finally {
+        button.disabled = false;
+    }
+});
 let activeSession = null;
 let inputQueue = Promise.resolve();
 
