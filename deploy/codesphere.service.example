@@ -1,0 +1,19 @@
+[Unit]
+Description=CodeSphere web app
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=codesphere
+Group=codesphere
+SupplementaryGroups=docker
+WorkingDirectory=/opt/codesphere
+EnvironmentFile=/etc/codesphere.env
+ExecStart=/opt/codesphere/.venv/bin/gunicorn --chdir backend --bind 127.0.0.1:8000 --workers 1 --threads 16 --timeout 120 app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
