@@ -1,7 +1,26 @@
-**/__pycache__/
-**/uploads/
-uploads/
-**/env/
+# Python caches and generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Local Python environments
+env/
+venv/
+.venv/
+
+# Local configuration and secrets
 .env
+.env.*
+!.env.example
+!.env.sample
+
+# Local database and generated uploads
 data/
-.pyc
+uploads/
+
+# Compiled runner output
+*.o
+*.obj
+*.exe
+*.out
