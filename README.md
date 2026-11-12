@@ -1,98 +1,96 @@
 # CodeSphere
 
-### Write code in your browser. Run it in a container.
+[![Tests](https://github.com/ravindra-dot/code-editor/actions/workflows/tests.yml/badge.svg)](https://github.com/ravindra-dot/code-editor/actions/workflows/tests.yml)
 
-CodeSphere is a small Flask web app with two editors: an interactive **Python, C, and C++ editor** and a separate **HTML, CSS, and JavaScript preview editor**. It also supports accounts, saved code, and recent activity.
+**A browser-based code editor for Python, C, and C++, with interactive program input and a separate HTML/CSS/JavaScript preview.**
 
-> **Viewing this on GitHub Pages?** This page is the project guide. GitHub Pages can publish this documentation, but it cannot run the Flask server, SQLite database, or Docker code runner. [Run CodeSphere locally](#run-locally) or use a server that supports those components.
+CodeSphere is a small Flask application for writing and trying code without installing language compilers on the client device. Monaco powers the Python/C/C++ editor, xterm.js shows program output and accepts input, and each run executes in a short-lived Docker container on the server.
 
-[Features](#features) · [Run locally](#run-locally) · [Using the editors](#using-the-editors) · [GitHub Pages](#github-pages) · [Tests](#tests) · [Deployment](#deployment)
+> CodeSphere runs individual programs. It does not provide a persistent shell, multi-file workspaces, debugging, or VS Code extension support.
 
 ## Features
 
-| | What you can do |
+| Feature | What it does |
 | --- | --- |
-| **Python, C, and C++** | Edit with Monaco, run programs, and interact with input and output in a terminal panel. |
-| **Web preview** | Edit HTML, CSS, and JavaScript and see the result in a sandboxed iframe. |
-| **Accounts and projects** | Sign up, save code, and revisit saved work and recent activity. |
-| **Container runner** | Compile or execute submitted programs in short-lived Linux Docker containers with resource limits. |
+| Python, C, and C++ editor | Syntax highlighting, suggestions, snippets, language selection, local drafts, and a theme toggle. |
+| Interactive runs | Stream output, type input into a running program, and stop it from the browser. |
+| Web preview | Edit HTML, CSS, and JavaScript in a separate page with a sandboxed iframe preview. |
+| Accounts and history | Save code and revisit recent activity with local SQLite storage. |
+| Restricted execution | Run each submitted program in a fresh Linux container with resource and time limits. |
 
-The main editor includes syntax highlighting, suggestions, snippets, and a light theme toggle. The runner image includes Python, GCC, G++, NumPy, pandas, Matplotlib, Pillow, SymPy, Eigen, and nlohmann/json. Submitted programs cannot access the network or install more packages. Program-created plots and image files are not displayed or downloadable; text output is supported.
+The runner image includes Python, GCC, G++, NumPy, pandas, Matplotlib, Pillow, SymPy, Eigen, and nlohmann/json. Programs cannot install packages or use the network. Generated images and other files are not returned to the browser; the execution API returns text output.
 
-## Run locally
+## Quick start
 
-### Before you start
+**Requirements:** Python, Docker Desktop or Docker Engine, and a browser. On Windows, Docker Desktop must use Linux containers. The host does not need GCC or G++.
 
-- Install Python and Docker Desktop. On Windows, select **Linux containers** in Docker Desktop.
-- Run the commands below from the repository root.
-- Confirm Docker is available with `docker info`.
-
-### 1. Build the runner
+From the repository root:
 
 ```powershell
 docker build --pull -t codesphere-runner:latest ./runner
-```
-
-This image contains the language runtimes and compilers; you do not need GCC or G++ on the host. Rebuild it after changing `runner/Dockerfile` or the runner scripts.
-
-### 2. Install the web app dependencies
-
-```powershell
 python -m pip install -r requirements.txt
-```
-
-Using a virtual environment is recommended. The local `env/`, `venv/`, and `.venv/` folders are ignored by Git.
-
-### 3. Start CodeSphere
-
-```powershell
 python backend/app.py
 ```
 
-Open **<http://127.0.0.1:5500>** in your browser.
+Open <http://127.0.0.1:5500>. Docker must be running when you execute Python, C, or C++ programs. The HTML/CSS/JavaScript preview works without Docker. Frontend assets load from CDNs, so the browser needs an internet connection for the editor libraries and styling.
 
-The app creates its local SQLite database in `data/codesphere.sqlite3`. To use another local file, set `CODESPHERE_DB_PATH` to its absolute path. The database and local session secret are ignored by Git. For a hosted installation, set `CODESPHERE_SECRET_KEY` to a long random value.
+The app creates `data/codesphere.sqlite3` and a local Flask secret under the ignored `data/` directory. Set `CODESPHERE_DB_PATH` to use another local database path. Do not commit either file.
 
-## Using the editors
+## Use the editors
 
-1. Open **`/editor`** for Python, C, or C++. Choose a language, enter code, and press **Run Code**.
-2. Click the terminal and type when your program requests input. Press **Stop** to end a running program. This terminal runs your program; it is not a general shell.
-3. Open **`/html-editor`** to preview HTML, CSS, and JavaScript in the browser.
-4. Create an account and sign in to use **Save code**, projects, and recent activity. You can open either editor and run code without signing in. Running code does not save it automatically.
+1. Visit `/editor`, choose Python, C, or C++, write a program, and select **Run Code**. Type in the terminal panel when your program requests input. The panel connects to the running program; it is not a general-purpose shell.
+2. Visit `/html-editor` for the HTML/CSS/JavaScript preview. Its iframe uses `sandbox="allow-scripts"`.
+3. Create an account to save Python/C/C++ snippets and view recent activity. You can edit and run code without signing in. Runs are not saved automatically.
 
-If a run returns **503**, check that Docker Desktop is running in Linux container mode and that `codesphere-runner:latest` was built. The HTML/CSS/JavaScript preview does not need Docker.
+If execution returns **503**, start Docker Desktop and build the `codesphere-runner:latest` image with the command above.
 
-## GitHub Pages
+## How it works
 
-GitHub Pages can publish this README as a static project page. To use it, push the repository to GitHub, then open **Settings → Pages → Build and deployment** and select **Deploy from a branch**, **`main`**, and **`/(root)`**. This repository has no root `index.html` or `index.md`, so Pages can use this root `README.md` as its entry file. See [GitHub's publishing source guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) and [entry file guide](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site).
+```text
+Browser (Monaco + xterm.js)
+          │
+          ▼
+Flask routes ─────────── SQLite (accounts, saved snippets, activity)
+          │
+          ▼
+Short-lived Docker runner (Python / GCC / G++)
+```
 
-The Pages site is documentation for CodeSphere. The `/editor` and `/html-editor` routes described above belong to the running Flask app; they are not available on GitHub Pages. Hosting the working app requires a Python server, persistent storage, and a Docker-capable runner host.
+- [`backend/app.py`](backend/app.py) provides authentication, save, execution, and terminal routes.
+- [`backend/database.py`](backend/database.py) stores accounts, recent activity, and saved snippets in SQLite.
+- [`backend/run_code.py`](backend/run_code.py) and [`backend/interactive.py`](backend/interactive.py) start and manage restricted containers.
+- [`frontend/`](frontend/) contains the Jinja pages and browser scripts.
+- [`runner/`](runner/) contains the Docker image and in-container execution code.
+
+The runner uses a read-only image filesystem, a non-root user, no network or host mounts, dropped capabilities, temporary working directories, and limits on CPU, memory, processes, output, and time. These controls reduce risk, but running other people's code still requires a carefully maintained host.
 
 ## Tests
 
-Run the host-side tests from the repository root:
+Run the host-side suite:
 
 ```powershell
 python -B -m unittest discover -s tests -v
 ```
 
-After building the runner image, check all three languages and interactive input:
+With the runner image built and Docker running, exercise Python, C, C++, and interactive input:
 
 ```powershell
 python -B tests/docker_smoke.py
 python -B tests/interactive_smoke.py
 ```
 
-With Docker running, `python -B tests/live_integration.py` checks signup, login, execution, profile, projects, and saved history with a disposable SQLite database.
+`python -B tests/live_integration.py` checks signup, login, execution, profile, projects, and saved history using a disposable SQLite database.
 
-## Deployment
+## Sharing and deployment
 
-For a small public deployment on one Linux VPS, follow the [deployment guide](https://github.com/raveendras-git/code-editor/blob/main/deploy/README.md). It covers Gunicorn, Caddy with HTTPS, persistent SQLite storage, the Docker runner, and basic request limits. A VPS and domain are required.
+The `python backend/app.py` command starts Flask's development server for local testing. For shared access, use a production WSGI server, a stable `CODESPHERE_SECRET_KEY`, and the public-mode settings described in the [single-host deployment guide](deploy/README.md). Keep the Docker socket private and verify the reverse proxy or tunnel preserves the client address used by rate limits. Interactive sessions live in one server process, so the current deployment uses one worker.
 
-**The full app cannot run on GitHub Pages or Vercel alone.** Pages hosts static content. A local SQLite file in a Vercel Function is not durable across instances and deployments, and this runner needs a separate Docker-capable host. A different hosting design would need durable external storage and an external code-execution service.
+GitHub Pages can show this README as documentation, but it cannot run the Flask app or Docker runner. A local SQLite database is not durable in Vercel Functions, and the runner requires a Docker-capable host. The full application therefore cannot run on GitHub Pages or Vercel alone.
 
-Each submitted Python, C, or C++ run uses a new container with no network or host mounts, a read-only image filesystem, a non-root user, dropped capabilities, temporary scratch space, and CPU, memory, process, output, and time limits. Containers have a 512 MiB memory limit. Docker isolation reduces risk but does not guarantee protection from every container escape or denial of service. Keep the host and runner image updated before offering public access.
+## Contributing
 
----
+Bug reports and focused improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Please report security issues using the instructions in [SECURITY.md](SECURITY.md).
 
-**Project layout:** `backend/` contains Flask routes and SQLite access; `frontend/` contains Jinja templates and browser scripts; `runner/` contains the Docker execution image; `tests/` contains automated and smoke tests.
+## License
+
+CodeSphere is available under the [MIT License](LICENSE).
